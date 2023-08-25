@@ -9,12 +9,13 @@ use App\Domains\Currency\Adapters\SingleNumberFilterStrategy;
 use App\Domains\Currency\Events\CurrencyCreated;
 use App\Domains\Currency\Repositories\GetCurrencyRepository;
 use App\Domains\Currency\Resources\CurrencyResource;
-use Illuminate\Http\Request;
+use Exception;
 use Illuminate\Support\Facades\Cache;
 
 class GetCurrencyService {
 
     const CACHING_TIME = 5; // min
+    const EXTERNAL_SOURCE = 'https://pt.wikipedia.org/wiki/ISO_4217';
 
     private ClientHttpRequestPort $clienteHttp;
     private DataFilterContext $context;
@@ -29,10 +30,9 @@ class GetCurrencyService {
     /**
      * Facade to execute the crawl
      *
-     * @param  mixed $request
-     * @return void
+     * @param  mixed $codes
      */
-    public function execute(Request $request) {
+    public function execute($codes):array {
 
         $strategyMap = [
             'code' => SingleCodeFilterStrategy::class,
@@ -41,22 +41,21 @@ class GetCurrencyService {
             'number_list' => MultiNumbersFilterStrategy::class,
         ];
 
-        $inputKeys = $request->keys();
-
+        $inputKeys = array_keys($codes);
         $this->_validateInput($inputKeys, $strategyMap);
 
         $strategy = app($strategyMap[$inputKeys[0]]);
 
-        $inputKeysValue = $this->_generateCacheKey($request);
+        $inputKeysValue = $this->_generateCacheKey($codes);
 
-        $currencies = $this->_getFromCacheOrDatabase($inputKeysValue, function () use ($strategy, $inputKeys, $request) {
-            $html = $this->clienteHttp->execute('https://pt.wikipedia.org/wiki/ISO_4217');
-            $currencies = $this->context->setStrategy($strategy)->filterData($html, $request->get($inputKeys[0]));
+        $currencies = $this->_getFromCacheOrDatabase($inputKeysValue, function () use ($strategy, $inputKeys, $codes) {
+            $html = $this->clienteHttp->execute(self::EXTERNAL_SOURCE);
+            $currencies = $this->context->setStrategy($strategy)->filterData($html, $codes[$inputKeys[0]]);
             CurrencyCreated::dispatch($currencies);
             return $currencies;
         });
 
-        return response()->json($currencies);
+        return $currencies;
     }
 
     private function _getFromCacheOrDatabase($cacheKey, $dataRetrievalCallback) {
@@ -74,20 +73,26 @@ class GetCurrencyService {
                 $this->repository->getCurrenciesByCode(explode('_', $cacheKey))
             );
         } finally {
-            Cache::put("currencies_{$cacheKey}", $currencies, 60 * self::CACHING_TIME);
+            $this->_saveCurrenciesCaching($currencies, $cacheKey);
         }
 
         return $currencies;
     }
 
-    private function _generateCacheKey(Request $request)
+    private function _saveCurrenciesCaching (array $currencies, $cacheKey) {
+        if(count($currencies)){
+            Cache::put("currencies_{$cacheKey}", $currencies, 60 * self::CACHING_TIME);
+        }
+    }
+
+    private function _generateCacheKey(array $codes)
     {
-        return implode('_', array_map(fn($v) => is_array($v) ? implode('_', $v) : $v, $request->input()));
+        return implode('_', array_map(fn($v) => is_array($v) ? implode('_', $v) : $v, $codes));
     }
 
     private function _validateInput($inputKeys, $strategyMap){
         if (count($inputKeys) !== 1 || !isset($strategyMap[$inputKeys[0]])) {
-            abort(422, "Chave incorreta");
+            throw new Exception('Chave incorreta', 422);
         }
     }
 }

@@ -14,6 +14,7 @@ class GetCurrencyController {
     }
 
     public function execute(GetCurrencyRequest $request) {
-        return $this->service->execute($request);
+        $currencies = $this->service->execute($request->all());
+        return response()->json($currencies);
     }
 }
