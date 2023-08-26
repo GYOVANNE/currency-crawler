@@ -46,13 +46,6 @@ services:
       - ./:/var/www/app
       - ./docker-compose/nginx:/etc/nginx/conf.d/
     working_dir: /var/www/app
-  mailhog:
-    image: 'mailhog/mailhog:latest'
-    ports:
-      - 1025:1025
-      - 8025:8025
-    networks:
-      - currencycrawler-laravelNetwork
 networks:
   currencycrawler-laravelNetwork:
     driver: bridge
