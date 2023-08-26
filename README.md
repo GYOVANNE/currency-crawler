@@ -1,15 +1,17 @@
-## Currency Crawling 
+## Currency Crawling backend  api
+
+[Client Web repository](https://github.com/GYOVANNE/currency-crawler-web)
 
 
-## Components
+## Run Project
 
-![Components](./docs/components.png)
-
- 
-
-## classes
-
-![Classes](./docs/classes.png)
+```sh
+docker-compose up -d
+```
+ - Run composer install
+ - Generate key
+ - Run migrations
+ - Run tests
 
 # Api request Example
 
@@ -37,3 +39,19 @@ curl --location --request POST 'http://localhost:4002/api/currency' \
     ]
 }
 ```
+# Documentation
+
+### Components
+
+![Components](./docs/components.png)
+
+ 
+
+### Classes
+
+![Classes](./docs/classes.png)
+
+### Flow
+
+![Classes](./docs/flow.png)
+
